@@ -1,0 +1,19 @@
+{
+  "name": "hzk-admin-dashboard",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.95.3",
+    "@metaplex-foundation/js": "^0.20.1",
+    "buffer": "^6.0.3"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "vite-plugin-node-polyfills": "^0.22.0"
+  }
+}

@@ -12,14 +12,16 @@ import {
   addDoc,
   limit
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { initializeControls, cleanupControls } from './controls.js';
+import { initializeVaults, cleanupVaults } from './vaults.js';
 
-// Admin password - same as in your main app
+// Admin password
 const ADMIN_SECRET = 'hzk-admin-2024';
 
 // State
 let state = {
   isAuthenticated: false,
-  currentPage: 'tickets', // 'tickets' or 'controls'
+  currentPage: 'tickets',
   tickets: [],
   filterStatus: 'all',
   expandedTicketId: null,
@@ -27,7 +29,10 @@ let state = {
   unsubscribe: null,
   unsubscribeLog: null,
   mobileMenuOpen: false,
-  deleteConfirmTicketId: null
+  deleteConfirmTicketId: null,
+  adminWallet: null,
+  adminWalletAddress: null,
+  showWalletInfoModal: false
 };
 
 // Initialize app
@@ -39,8 +44,28 @@ function init() {
 // Check if admin is already authenticated
 function checkAuth() {
   const isAuth = sessionStorage.getItem('hzk_admin_auth');
-  if (isAuth === 'true') {
+  const savedWallet = sessionStorage.getItem('hzk_admin_wallet');
+  
+  if (isAuth === 'true' && savedWallet) {
     state.isAuthenticated = true;
+    state.adminWalletAddress = savedWallet;
+    
+    // Try to reconnect wallet silently
+    (async () => {
+      try {
+        const { solana } = window;
+        if (solana?.isPhantom) {
+          const response = await solana.connect({ onlyIfTrusted: true });
+          if (response.publicKey.toString() === savedWallet) {
+            state.adminWallet = solana;
+            console.log('Wallet auto-reconnected');
+          }
+        }
+      } catch (error) {
+        console.log('Wallet auto-reconnect failed');
+      }
+    })();
+    
     subscribeToTickets();
     subscribeToActionLogs();
   }
@@ -61,28 +86,98 @@ function renderApp() {
 
 // Login screen template
 function renderLoginScreen() {
+  const hasWallet = !!state.adminWalletAddress;
+  
   return `
     <div class="login-container">
       <div class="login-card">
         <div class="login-icon">🔐</div>
         <h1>HZK Support Admin</h1>
-        <p class="login-subtitle">Enter admin credentials to access the dashboard</p>
+        <p class="login-subtitle">Secure admin access with wallet verification</p>
         
-        <form id="loginForm" class="login-form">
-          <div class="form-group">
-            <input 
-              type="password" 
-              id="password" 
-              placeholder="Admin Password"
-              autocomplete="current-password"
-            />
+        ${!hasWallet ? `
+          <div class="wallet-requirement">
+            <div class="wallet-req-icon">👛</div>
+            <h3>Step 1: Connect Your Wallet</h3>
+            <p>Connect your Phantom wallet to verify your identity before accessing the admin dashboard.</p>
+            <button type="button" class="wallet-connect-login-btn" id="connectWalletLoginBtn">
+              <span>🔗</span> Connect Phantom Wallet
+            </button>
+            <button type="button" class="wallet-info-btn" onclick="window.showWalletInfoModal()">
+              <span>ℹ️</span> Why do I need to connect my wallet?
+            </button>
           </div>
-          <button type="submit" class="login-btn">
-            Access Dashboard
-          </button>
-        </form>
-        
-        <div id="loginError" class="login-error" style="display: none;"></div>
+        ` : `
+          <div class="wallet-connected-login">
+            <div class="connected-badge">
+              <span class="badge-icon">✅</span>
+              <span>Wallet Connected</span>
+            </div>
+            <div class="connected-address">${state.adminWalletAddress}</div>
+            <button type="button" class="change-wallet-btn" id="changeWalletBtn">
+              Change Wallet
+            </button>
+          </div>
+          
+          <form id="loginForm" class="login-form">
+            <div class="login-step-label">Step 2: Enter Admin Password</div>
+            <div class="form-group">
+              <input 
+                type="password" 
+                id="password" 
+                placeholder="Admin Password"
+                autocomplete="current-password"
+              />
+            </div>
+            <button type="submit" class="login-btn">
+              Access Dashboard
+            </button>
+          </form>
+          
+          <div id="loginError" class="login-error" style="display: none;"></div>
+        `}
+      </div>
+      
+      <!-- Wallet Info Modal -->
+      <div id="walletInfoModal" class="modal-overlay ${state.showWalletInfoModal ? 'active' : ''}">
+        <div class="modal-content wallet-info-modal">
+          <div class="modal-icon">🔐</div>
+          <h2 class="modal-title">Why Connect Your Wallet?</h2>
+          <div class="wallet-info-content">
+            <div class="info-section">
+              <div class="info-icon">🔍</div>
+              <div class="info-text">
+                <h4>Transparency & Accountability</h4>
+                <p>Every action you take in the admin dashboard is logged with your wallet address for complete transparency and traceability.</p>
+              </div>
+            </div>
+            
+            <div class="info-section">
+              <div class="info-icon">🛡️</div>
+              <div class="info-text">
+                <h4>Security & Verification</h4>
+                <p>Your wallet address serves as a unique identifier, ensuring only authorized admins can access and modify support tickets.</p>
+              </div>
+            </div>
+            
+            <div class="info-section">
+              <div class="info-icon">📋</div>
+              <div class="info-text">
+                <h4>Audit Trail</h4>
+                <p>All ticket updates, status changes, and NFT mints are permanently recorded with your wallet signature for compliance and accountability.</p>
+              </div>
+            </div>
+            
+            <div class="info-section">
+              <div class="info-icon">🔒</div>
+              <div class="info-text">
+                <h4>What We Don't Do</h4>
+                <p>We never request transactions, access your funds, or share your wallet information. This is purely for identity verification and action logging.</p>
+              </div>
+            </div>
+          </div>
+          <button class="modal-close-btn" onclick="window.hideWalletInfoModal()">I Understand</button>
+        </div>
       </div>
     </div>
   `;
@@ -118,8 +213,12 @@ function renderDashboard() {
             <span>Tickets</span>
           </a>
           <a href="#" class="mobile-nav-item ${state.currentPage === 'controls' ? 'active' : ''}" data-page="controls">
-            <span class="nav-icon">⚙️</span>
-            <span>Controls</span>
+            <span class="nav-icon">🎨</span>
+            <span>Minting</span>
+          </a>
+          <a href="#" class="mobile-nav-item ${state.currentPage === 'vaults' ? 'active' : ''}" data-page="vaults">
+            <span class="nav-icon">🏦</span>
+            <span>Vaults</span>
           </a>
           <button id="mobileLogoutBtn" class="mobile-nav-item logout">
             <span class="nav-icon">🚪</span>
@@ -151,8 +250,12 @@ function renderDashboard() {
             <span class="nav-badge">${stats.total}</span>
           </a>
           <a href="#" class="nav-item ${state.currentPage === 'controls' ? 'active' : ''}" data-page="controls">
-            <span class="nav-icon">⚙️</span>
-            <span class="nav-label">Controls</span>
+            <span class="nav-icon">🎨</span>
+            <span class="nav-label">Minting</span>
+          </a>
+          <a href="#" class="nav-item ${state.currentPage === 'vaults' ? 'active' : ''}" data-page="vaults">
+            <span class="nav-icon">🏦</span>
+            <span class="nav-label">Vaults</span>
           </a>
         </nav>
         
@@ -166,7 +269,11 @@ function renderDashboard() {
 
       <!-- Main Content Area -->
       <main class="main-content">
-        ${state.currentPage === 'tickets' ? renderTicketsPage(stats) : renderControlsPage()}
+        ${state.currentPage === 'tickets' 
+          ? renderTicketsPage(stats) 
+          : state.currentPage === 'controls'
+          ? '<div id="controlsContainer"></div>'
+          : '<div id="vaultsContainer"></div>'}
       </main>
 
       <!-- Success Modal -->
@@ -192,6 +299,16 @@ function renderDashboard() {
           </div>
         </div>
       </div>
+
+      <!-- Action Log Detail Modal -->
+      <div id="logDetailModal" class="modal-overlay log-detail-modal">
+        <div class="modal-content">
+          <div class="modal-icon">📋</div>
+          <h2 class="modal-title" id="logDetailTitle">Action Details</h2>
+          <div id="logDetailContent" class="log-detail-info"></div>
+          <button id="logDetailCloseBtn" class="modal-close-btn">Close</button>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -202,6 +319,19 @@ function renderTicketsPage(stats) {
     <div class="page-header">
       <h2 class="page-title">Support Tickets</h2>
     </div>
+
+    ${state.adminWalletAddress ? `
+      <div class="admin-wallet-info">
+        <span class="wallet-info-icon">👛</span>
+        <div class="wallet-info-content">
+          <div class="wallet-info-label">Admin Wallet</div>
+          <div class="wallet-info-address">${state.adminWalletAddress}</div>
+        </div>
+        <div class="wallet-info-status">
+          <span class="status-badge">🟢 Connected</span>
+        </div>
+      </div>
+    ` : ''}
 
     <!-- Stats Grid -->
     <div class="stats-grid">
@@ -289,24 +419,6 @@ function renderTicketsPage(stats) {
   `;
 }
 
-// Controls Page (Empty for now)
-function renderControlsPage() {
-  return `
-    <div class="page-header">
-      <h2 class="page-title">Controls</h2>
-    </div>
-
-    <div class="controls-container">
-      <div class="empty-controls">
-        <div class="empty-icon">⚙️</div>
-        <h3>Control Panel</h3>
-        <p>Admin controls and settings will be available here.</p>
-        <div class="coming-soon-badge">Coming Soon</div>
-      </div>
-    </div>
-  `;
-}
-
 // Calculate statistics
 function calculateStats() {
   return {
@@ -339,12 +451,12 @@ function renderActionLog() {
     const shortTicketId = log.ticketId === 'N/A' ? 'N/A' : log.ticketId.slice(0, 8);
     const isNew = index === 0 ? 'new-entry' : '';
     const isDelete = log.action.toLowerCase().includes('delete') ? 'delete-action' : '';
+    const isMint = log.action.toLowerCase().includes('nft') || log.action.toLowerCase().includes('mint') ? 'mint-action' : '';
     return `
-      <div class="log-entry ${isNew} ${isDelete}">
+      <div class="log-entry ${isNew} ${isDelete} ${isMint}" onclick="window.showLogDetail('${log.id}')">
         <span class="log-time">${log.timestamp}</span>
         <span class="log-action">${log.action}</span>
         <span class="log-ticket">#${shortTicketId}</span>
-        <span class="log-details">${log.details}</span>
       </div>
     `;
   }).join('');
@@ -528,21 +640,15 @@ async function deleteTicket() {
   if (!ticketId) return;
   
   try {
-    // Delete from Firestore
     await deleteDoc(doc(db, 'support_tickets', ticketId));
-    
-    // Log the action
     await logAdminAction('Ticket Deleted', ticketId, `Subject: ${ticketSubject || 'N/A'}`);
     
-    // Hide modal
     hideDeleteConfirm();
     
-    // Reset expanded state if deleted ticket was expanded
     if (state.expandedTicketId === ticketId) {
       state.expandedTicketId = null;
     }
     
-    // Show success modal
     showSuccessModal(
       'Ticket Deleted!',
       'The ticket has been permanently removed.',
@@ -569,7 +675,7 @@ async function deleteTicket() {
 }
 
 // Show success modal
-function showSuccessModal(title, message, details = null) {
+window.showSuccessModal = function(title, message, details = null, ticketId = null) {
   const modal = document.getElementById('successModal');
   const modalTitle = modal.querySelector('.modal-title');
   const modalMessage = document.getElementById('modalMessage');
@@ -587,6 +693,13 @@ function showSuccessModal(title, message, details = null) {
   }
   
   modal.classList.add('active');
+  
+  // Store ticketId for animation after modal closes
+  if (ticketId) {
+    modal.setAttribute('data-modified-ticket', ticketId);
+  } else {
+    modal.removeAttribute('data-modified-ticket');
+  }
   
   const autoCloseTimeout = setTimeout(() => {
     hideSuccessModal();
@@ -609,13 +722,37 @@ function showSuccessModal(title, message, details = null) {
   };
   
   modal.addEventListener('click', overlayHandler);
-}
+};
 
 // Hide success modal
 function hideSuccessModal() {
   const modal = document.getElementById('successModal');
   if (modal) {
+    const ticketId = modal.getAttribute('data-modified-ticket');
     modal.classList.remove('active');
+    
+    // If there's a modified ticket, animate and scroll to it
+    if (ticketId) {
+      setTimeout(() => {
+        const ticketCard = document.querySelector(`[data-ticket-id="${ticketId}"]`);
+        if (ticketCard) {
+          // Scroll to the ticket with smooth animation
+          ticketCard.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center'
+          });
+          
+          // Start pulse animation after scroll
+          setTimeout(() => {
+            ticketCard.classList.add('ticket-modified');
+            setTimeout(() => {
+              ticketCard.classList.remove('ticket-modified');
+            }, 3000);
+          }, 500);
+        }
+        modal.removeAttribute('data-modified-ticket');
+      }, 300);
+    }
   }
 }
 
@@ -651,7 +788,6 @@ function updateStatsSection() {
     }
   }
   
-  // Update nav badge
   const navBadge = document.querySelector('.nav-badge');
   if (navBadge) {
     navBadge.textContent = state.tickets.length;
@@ -697,16 +833,19 @@ function updateFilterCounts() {
   }
 }
 
-// Log admin action
-async function logAdminAction(action, ticketId, details) {
+// Log admin action - EXPORTED so controls.js can use it
+export async function logAdminAction(action, ticketId, details) {
   try {
+    const walletAddress = state.adminWalletAddress || 'Not Connected';
     const docRef = await addDoc(collection(db, 'admin_action_logs'), {
       action,
       ticketId: ticketId || 'N/A',
       details,
+      walletAddress,
       timestamp: serverTimestamp(),
       createdAt: new Date().toISOString()
     });
+    console.log('✅ Admin action logged:', action, details, 'by', walletAddress);
     return docRef.id;
   } catch (error) {
     console.error('Error saving admin action log:', error);
@@ -716,13 +855,80 @@ async function logAdminAction(action, ticketId, details) {
 
 // Attach login listeners
 function attachLoginListeners() {
+  const connectWalletBtn = document.getElementById('connectWalletLoginBtn');
+  if (connectWalletBtn) {
+    connectWalletBtn.addEventListener('click', connectWalletForLogin);
+  }
+  
+  const changeWalletBtn = document.getElementById('changeWalletBtn');
+  if (changeWalletBtn) {
+    changeWalletBtn.addEventListener('click', changeWalletForLogin);
+  }
+  
   const form = document.getElementById('loginForm');
-  form.addEventListener('submit', handleLogin);
+  if (form) {
+    form.addEventListener('submit', handleLogin);
+  }
 }
+
+// Connect wallet for login
+async function connectWalletForLogin() {
+  try {
+    const { solana } = window;
+    if (!solana?.isPhantom) {
+      alert('Phantom wallet not found! Please install Phantom wallet extension.');
+      window.open('https://phantom.app/', '_blank');
+      return;
+    }
+    
+    const response = await solana.connect();
+    state.adminWallet = solana;
+    state.adminWalletAddress = response.publicKey.toString();
+    
+    console.log('✅ Wallet connected for login:', state.adminWalletAddress);
+    
+    renderApp();
+  } catch (error) {
+    console.error('Error connecting wallet:', error);
+    alert('Failed to connect wallet: ' + error.message);
+  }
+}
+
+// Change wallet for login
+async function changeWalletForLogin() {
+  try {
+    if (state.adminWallet) {
+      await state.adminWallet.disconnect();
+    }
+    state.adminWallet = null;
+    state.adminWalletAddress = null;
+    
+    renderApp();
+  } catch (error) {
+    console.error('Error changing wallet:', error);
+  }
+}
+
+// Show wallet info modal
+window.showWalletInfoModal = function() {
+  state.showWalletInfoModal = true;
+  renderApp();
+};
+
+// Hide wallet info modal
+window.hideWalletInfoModal = function() {
+  state.showWalletInfoModal = false;
+  renderApp();
+};
 
 // Handle login
 async function handleLogin(e) {
   e.preventDefault();
+  
+  if (!state.adminWalletAddress) {
+    alert('Please connect your wallet first.');
+    return;
+  }
   
   const passwordInput = document.getElementById('password');
   const password = passwordInput.value;
@@ -730,6 +936,7 @@ async function handleLogin(e) {
   
   if (password === ADMIN_SECRET) {
     sessionStorage.setItem('hzk_admin_auth', 'true');
+    sessionStorage.setItem('hzk_admin_wallet', state.adminWalletAddress);
     state.isAuthenticated = true;
     subscribeToTickets();
     subscribeToActionLogs();
@@ -811,8 +1018,10 @@ function subscribeToActionLogs() {
         action: data.action,
         ticketId: data.ticketId,
         details: data.details,
+        walletAddress: data.walletAddress || 'Unknown',
         timestamp: timestamp.toLocaleTimeString(),
-        fullTimestamp: timestamp
+        fullTimestamp: timestamp,
+        fullDate: timestamp.toLocaleString()
       };
     });
 
@@ -823,6 +1032,43 @@ function subscribeToActionLogs() {
     console.error('Error loading action logs:', error);
   });
 }
+
+// Show log detail modal
+window.showLogDetail = function(logId) {
+  const log = state.adminActionLog.find(l => l.id === logId);
+  if (!log) return;
+  
+  const modal = document.getElementById('logDetailModal');
+  const title = document.getElementById('logDetailTitle');
+  const content = document.getElementById('logDetailContent');
+  
+  title.textContent = log.action;
+  
+  content.innerHTML = `
+    <div class="log-detail-row">
+      <span class="log-detail-label">Time</span>
+      <span class="log-detail-value">${log.fullDate}</span>
+    </div>
+    <div class="log-detail-row">
+      <span class="log-detail-label">Action</span>
+      <span class="log-detail-value">${log.action}</span>
+    </div>
+    <div class="log-detail-row">
+      <span class="log-detail-label">Admin Wallet</span>
+      <span class="log-detail-value">${log.walletAddress}</span>
+    </div>
+    <div class="log-detail-row">
+      <span class="log-detail-label">Ticket ID</span>
+      <span class="log-detail-value">${log.ticketId}</span>
+    </div>
+    <div class="log-detail-row">
+      <span class="log-detail-label">Details</span>
+      <span class="log-detail-value">${log.details}</span>
+    </div>
+  `;
+  
+  modal.classList.add('active');
+};
 
 // Update only the action log section
 function updateActionLogSection() {
@@ -909,6 +1155,40 @@ function attachDashboardListeners() {
       }
     });
   }
+  
+  // Log detail modal close button
+  const logDetailCloseBtn = document.getElementById('logDetailCloseBtn');
+  if (logDetailCloseBtn) {
+    logDetailCloseBtn.addEventListener('click', () => {
+      document.getElementById('logDetailModal').classList.remove('active');
+    });
+  }
+  
+  // Close log detail modal on overlay click
+  const logDetailModal = document.getElementById('logDetailModal');
+  if (logDetailModal) {
+    logDetailModal.addEventListener('click', (e) => {
+      if (e.target === logDetailModal) {
+        logDetailModal.classList.remove('active');
+      }
+    });
+  }
+  
+  // Initialize controls if on controls page
+  if (state.currentPage === 'controls') {
+    const controlsContainer = document.getElementById('controlsContainer');
+    if (controlsContainer) {
+      controlsContainer.innerHTML = initializeControls();
+    }
+  }
+  
+  // Initialize vaults if on vaults page
+  if (state.currentPage === 'vaults') {
+    const vaultsContainer = document.getElementById('vaultsContainer');
+    if (vaultsContainer) {
+      vaultsContainer.innerHTML = initializeVaults();
+    }
+  }
 }
 
 // Toggle mobile menu
@@ -931,6 +1211,14 @@ function toggleMobileMenu() {
 function navigateToPage(page) {
   if (state.currentPage === page) return;
   
+  // Cleanup previous page
+  if (state.currentPage === 'controls') {
+    cleanupControls();
+  }
+  if (state.currentPage === 'vaults') {
+    cleanupVaults();
+  }
+  
   state.currentPage = page;
   state.expandedTicketId = null;
   
@@ -939,11 +1227,31 @@ function navigateToPage(page) {
 
 // Handle logout
 function handleLogout() {
+  // Cleanup controls if on that page
+  if (state.currentPage === 'controls') {
+    cleanupControls();
+  }
+  if (state.currentPage === 'vaults') {
+    cleanupVaults();
+  }
+  
+  // Disconnect wallet
+  if (state.adminWallet) {
+    try {
+      state.adminWallet.disconnect();
+    } catch (error) {
+      console.error('Error disconnecting wallet on logout:', error);
+    }
+  }
+  
   sessionStorage.removeItem('hzk_admin_auth');
+  sessionStorage.removeItem('hzk_admin_wallet');
   state.isAuthenticated = false;
   state.expandedTicketId = null;
   state.currentPage = 'tickets';
   state.mobileMenuOpen = false;
+  state.adminWallet = null;
+  state.adminWalletAddress = null;
   
   if (state.unsubscribe) {
     state.unsubscribe();
@@ -955,17 +1263,19 @@ function handleLogout() {
     state.unsubscribeLog = null;
   }
   
+  console.log('✅ Logged out and wallet disconnected');
+  
   renderApp();
 }
 
-// Toggle ticket expansion (global function)
+// Toggle ticket expansion
 window.toggleTicket = function(ticketId) {
   const wasExpanded = state.expandedTicketId === ticketId;
   state.expandedTicketId = wasExpanded ? null : ticketId;
   updateTicketsSection();
 };
 
-// Update ticket status (global function)
+// Update ticket status
 window.updateTicketStatus = async function(ticketId, newStatus, oldStatus) {
   if (newStatus === oldStatus) return;
   
@@ -976,6 +1286,10 @@ window.updateTicketStatus = async function(ticketId, newStatus, oldStatus) {
     });
     
     await logAdminAction('Status Change', ticketId, `${oldStatus} → ${newStatus}`);
+    
+    // Close the expanded ticket
+    state.expandedTicketId = null;
+    updateTicketsSection();
     
     const shortId = ticketId.slice(0, 8);
     showSuccessModal(
@@ -998,7 +1312,8 @@ window.updateTicketStatus = async function(ticketId, newStatus, oldStatus) {
           <span class="modal-detail-label">Timestamp</span>
           <span class="modal-detail-value">${new Date().toLocaleString()}</span>
         </div>
-      `
+      `,
+      ticketId  // Pass ticketId for post-modal animation
     );
   } catch (error) {
     console.error('Error updating ticket:', error);
@@ -1006,7 +1321,7 @@ window.updateTicketStatus = async function(ticketId, newStatus, oldStatus) {
   }
 };
 
-// Save notes (global function)
+// Save notes
 window.saveNotes = async function(ticketId) {
   const notesTextarea = document.getElementById(`notes-${ticketId}`);
   if (!notesTextarea) return;
@@ -1028,16 +1343,9 @@ window.saveNotes = async function(ticketId) {
     const notePreview = notes.length > 50 ? notes.slice(0, 50) + '...' : notes;
     await logAdminAction('Notes Updated', ticketId, notePreview || 'Notes cleared');
     
-    if (saveBtn) {
-      saveBtn.textContent = '✓ Saved!';
-      saveBtn.classList.add('saved');
-      
-      setTimeout(() => {
-        saveBtn.textContent = 'Save Notes';
-        saveBtn.disabled = false;
-        saveBtn.classList.remove('saved');
-      }, 2000);
-    }
+    // Close the expanded ticket
+    state.expandedTicketId = null;
+    updateTicketsSection();
     
     const shortId = ticketId.slice(0, 8);
     showSuccessModal(
@@ -1056,7 +1364,8 @@ window.saveNotes = async function(ticketId) {
           <span class="modal-detail-label">Timestamp</span>
           <span class="modal-detail-value">${new Date().toLocaleString()}</span>
         </div>
-      `
+      `,
+      ticketId  // Pass ticketId for post-modal animation
     );
   } catch (error) {
     console.error('Error saving notes:', error);
@@ -1069,7 +1378,7 @@ window.saveNotes = async function(ticketId) {
   }
 };
 
-// Copy to clipboard (global function)
+// Copy to clipboard
 window.copyToClipboard = function(text) {
   navigator.clipboard.writeText(text).then(() => {
     const btn = event.target;

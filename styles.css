@@ -1,6 +1,6 @@
 /* ====================================
    ENHANCED FUTURISTIC ADMIN DASHBOARD
-   With Responsive Navigation
+   With Responsive Navigation + All Updates
    ==================================== */
 
 * {
@@ -722,17 +722,19 @@ body::after {
 }
 
 .log-entry {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: var(--spacing-sm);
-  margin-bottom: var(--spacing-xs);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--spacing-xs);
+  align-items: center;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  margin-bottom: 4px;
   border: 1px solid rgba(45, 27, 78, 0.5);
   border-radius: var(--radius-sm);
   background: rgba(22, 8, 40, 0.4);
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   animation: logSlideIn 0.4s ease-out;
   transition: all 0.3s;
+  cursor: pointer;
 }
 
 @keyframes logSlideIn {
@@ -758,34 +760,47 @@ body::after {
   color: var(--accent-danger);
 }
 
+.log-entry.mint-action {
+  border-color: rgba(0, 255, 159, 0.5);
+  background: rgba(0, 255, 159, 0.05);
+}
+
+.log-entry.mint-action .log-action {
+  color: var(--accent-success);
+}
+
 .log-entry:hover {
   background: rgba(0, 255, 159, 0.08);
   border-color: var(--accent-primary);
+  transform: translateX(2px);
 }
 
 .log-time {
   color: var(--accent-tertiary);
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .log-action {
   color: var(--accent-primary);
   font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .log-ticket {
   color: var(--text-secondary);
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   background: rgba(31, 13, 58, 0.8);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
-  width: fit-content;
+  white-space: nowrap;
 }
 
 .log-details {
-  color: var(--text-tertiary);
-  font-size: 0.7rem;
+  display: none;
 }
 
 .log-empty {
@@ -793,6 +808,47 @@ body::after {
   color: var(--text-tertiary);
   padding: var(--spacing-xl);
   font-style: italic;
+}
+
+/* Action Log Detail Modal */
+.log-detail-modal .modal-content {
+  max-width: 500px;
+}
+
+.log-detail-info {
+  background: rgba(10, 1, 24, 0.6);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-top: var(--spacing-md);
+  text-align: left;
+}
+
+.log-detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--spacing-xs) 0;
+  border-bottom: 1px solid rgba(45, 27, 78, 0.3);
+  gap: var(--spacing-md);
+}
+
+.log-detail-row:last-child {
+  border-bottom: none;
+}
+
+.log-detail-label {
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.log-detail-value {
+  color: var(--accent-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: right;
+  word-break: break-all;
 }
 
 /* TICKETS */
@@ -833,6 +889,23 @@ body::after {
 .ticket-card.expanded {
   border-color: var(--accent-primary);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7), 0 0 40px rgba(0, 255, 159, 0.3);
+}
+
+.ticket-card.ticket-modified {
+  animation: ticketPulse 1s ease-in-out 3;
+}
+
+@keyframes ticketPulse {
+  0%, 100% {
+    transform: scale(1);
+    border-color: var(--border-primary);
+    box-shadow: 0 0 0 rgba(0, 255, 159, 0);
+  }
+  50% {
+    transform: scale(1.02);
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 30px rgba(0, 255, 159, 0.6), 0 0 60px rgba(0, 255, 159, 0.3);
+  }
 }
 
 .ticket-header {
@@ -1468,6 +1541,347 @@ body::after {
   20%, 40%, 60%, 80% { transform: translateX(8px); }
 }
 
+/* Wallet Gate */
+.wallet-gate {
+  background: rgba(22, 8, 40, 0.6);
+  backdrop-filter: blur(10px);
+  border: 2px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-2xl);
+  text-align: center;
+  max-width: 500px;
+  margin: var(--spacing-2xl) auto;
+}
+
+.wallet-gate-icon {
+  font-size: 4rem;
+  margin-bottom: var(--spacing-lg);
+  animation: iconFloat 3s ease-in-out infinite;
+}
+
+.wallet-gate h3 {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  margin-bottom: var(--spacing-sm);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.wallet-gate p {
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xl);
+  line-height: 1.6;
+}
+
+.wallet-gate-btn {
+  padding: var(--spacing-md) var(--spacing-2xl);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: #000;
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.4s;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.wallet-gate-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 30px rgba(0, 255, 159, 0.5);
+}
+
+.wallet-connected-info {
+  background: rgba(0, 255, 159, 0.1);
+  border: 2px solid var(--accent-success);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.wallet-connected-icon {
+  font-size: 1.5rem;
+}
+
+.wallet-connected-text {
+  flex: 1;
+}
+
+.wallet-connected-label {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+}
+
+.wallet-connected-address {
+  font-family: var(--font-mono);
+  color: var(--accent-success);
+  font-size: 0.9rem;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+/* Admin Wallet in Tickets Tab */
+.admin-wallet-info {
+  background: rgba(0, 255, 159, 0.08);
+  border: 2px solid var(--accent-success);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  animation: slideInDown 0.4s ease-out;
+}
+
+@keyframes slideInDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.wallet-info-icon {
+  font-size: 1.8rem;
+  animation: iconFloat 3s ease-in-out infinite;
+}
+
+.wallet-info-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.wallet-info-label {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.wallet-info-address {
+  font-family: var(--font-mono);
+  color: var(--accent-success);
+  font-size: 0.9rem;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.wallet-info-status {
+  display: flex;
+  align-items: center;
+}
+
+.status-badge {
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: rgba(0, 255, 159, 0.15);
+  color: var(--accent-success);
+  border: 1px solid var(--accent-success);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Login Wallet Requirement */
+.wallet-requirement {
+  text-align: center;
+  padding: var(--spacing-xl);
+  background: rgba(31, 13, 58, 0.4);
+  border: 2px dashed var(--border-primary);
+  border-radius: var(--radius-lg);
+  margin-top: var(--spacing-lg);
+}
+
+.wallet-req-icon {
+  font-size: 3rem;
+  margin-bottom: var(--spacing-md);
+  animation: iconFloat 3s ease-in-out infinite;
+}
+
+.wallet-requirement h3 {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  color: var(--accent-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.wallet-requirement p {
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-lg);
+  line-height: 1.6;
+}
+
+.wallet-connect-login-btn {
+  width: 100%;
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: #000;
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.4s;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.wallet-connect-login-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 25px rgba(0, 255, 159, 0.5);
+}
+
+.wallet-info-btn {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: transparent;
+  color: var(--accent-secondary);
+  border: 2px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+}
+
+.wallet-info-btn:hover {
+  background: rgba(0, 212, 255, 0.1);
+  border-color: var(--accent-secondary);
+}
+
+.wallet-connected-login {
+  background: rgba(0, 255, 159, 0.1);
+  border: 2px solid var(--accent-success);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  text-align: center;
+}
+
+.connected-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--accent-success);
+  color: #000;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-bottom: var(--spacing-sm);
+}
+
+.badge-icon {
+  font-size: 1rem;
+}
+
+.connected-address {
+  font-family: var(--font-mono);
+  color: var(--accent-success);
+  font-size: 0.9rem;
+  font-weight: 600;
+  word-break: break-all;
+  margin-bottom: var(--spacing-md);
+}
+
+.change-wallet-btn {
+  padding: var(--spacing-xs) var(--spacing-lg);
+  background: rgba(122, 138, 171, 0.2);
+  color: var(--text-secondary);
+  border: 2px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.change-wallet-btn:hover {
+  background: rgba(122, 138, 171, 0.3);
+  border-color: var(--text-secondary);
+}
+
+.login-step-label {
+  font-size: 0.85rem;
+  color: var(--accent-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  margin-bottom: var(--spacing-md);
+  text-align: center;
+}
+
+/* Wallet Info Modal */
+.wallet-info-modal {
+  max-width: 600px;
+  text-align: left;
+}
+
+.wallet-info-modal .modal-content {
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.wallet-info-content {
+  background: rgba(10, 1, 24, 0.6);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  margin: var(--spacing-lg) 0;
+}
+
+.info-section {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid rgba(45, 27, 78, 0.5);
+}
+
+.info-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.info-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.info-text h4 {
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 3vw, 1.1rem);
+  color: var(--accent-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.info-text p {
+  color: var(--text-secondary);
+  font-size: clamp(0.85rem, 2.5vw, 0.9rem);
+  line-height: 1.6;
+  margin: 0;
+}
+
 /* RESPONSIVE */
 @media (max-width: 1024px) {
   .side-nav {
@@ -1572,6 +1986,31 @@ body::after {
   .modal-btn {
     width: 100%;
   }
+  
+  /* Wallet Info Modal Mobile */
+  .wallet-info-modal {
+    max-width: 95%;
+  }
+  
+  .wallet-info-modal .modal-content {
+    padding: var(--spacing-lg);
+    max-height: 90vh;
+  }
+  
+  .wallet-info-content {
+    padding: var(--spacing-md);
+  }
+  
+  .info-section {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-md);
+  }
+  
+  .info-icon {
+    font-size: 1.5rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1585,6 +2024,23 @@ body::after {
   
   .section-title {
     font-size: 1rem;
+  }
+  
+  /* Wallet Info Modal Extra Small Screens */
+  .wallet-info-modal .modal-content {
+    padding: var(--spacing-md);
+  }
+  
+  .wallet-info-modal .modal-icon {
+    font-size: 2.5rem;
+  }
+  
+  .wallet-info-modal .modal-title {
+    font-size: 1.1rem;
+  }
+  
+  .info-section {
+    gap: var(--spacing-xs);
   }
 }
 
